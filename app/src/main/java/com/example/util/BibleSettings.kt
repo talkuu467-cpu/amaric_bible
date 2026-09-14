@@ -33,7 +33,7 @@ enum class ReaderLineSpacing(val displayName: String, val multiplier: Float) {
 
 data class ReaderSettings(
     val translation: BibleTranslation = BibleTranslation.AMHARIC,
-    val theme: ReaderTheme = ReaderTheme.PARCHMENT,
+    val theme: ReaderTheme = ReaderTheme.NIGHT,
     val font: ReaderFont = ReaderFont.SERIF,
     val fontSize: ReaderFontSize = ReaderFontSize.MEDIUM,
     val lineSpacing: ReaderLineSpacing = ReaderLineSpacing.NORMAL,

@@ -641,7 +641,57 @@ object BibleScriptureStore {
                     "amharic_deuteronomy_part2.json",
                     "amharic_deuteronomy_part3.json",
                     "amharic_joshua_part1.json",
-                    "amharic_joshua_part2.json"
+                    "amharic_joshua_part2.json",
+                    "amharic_judges_part1.json",
+                    "amharic_judges_part2.json",
+                    "amharic_ruth.json",
+                    "amharic_1samuel_part1.json",
+                    "amharic_1samuel_part2.json",
+                    "amharic_2samuel_part1.json",
+                    "amharic_2samuel_part2.json",
+                    "amharic_1kings_part1.json",
+                    "amharic_1kings_part2.json",
+                    "amharic_2kings_part1.json",
+                    "amharic_2kings_part2.json",
+                    "amharic_2kings_part3.json",
+                    "amharic_1chronicles_part1.json",
+                    "amharic_1chronicles_part2.json",
+                    "amharic_2chronicles_part1.json",
+                    "amharic_2chronicles_part2.json",
+                    "amharic_2chronicles_part3.json",
+                    "amharic_ezra.json",
+                    "amharic_nehemiah.json",
+                    "amharic_esther.json",
+                    "amharic_job_part1.json",
+                    "amharic_job_part2.json",
+                    "amharic_job_part3.json",
+                    "amharic_psalms_part1.json",
+                    "amharic_psalms_part2.json",
+                    "amharic_psalms_part3.json",
+                    "amharic_psalms_part4.json",
+                    "amharic_proverbs.json",
+                    "amharic_ecclesiastes.json",
+                    "amharic_songofsolomon.json",
+                    "amharic_isaiah_part1.json",
+                    "amharic_isaiah_part2.json",
+                    "amharic_jeremiah_part1.json",
+                    "amharic_jeremiah_part2.json",
+                    "amharic_lamentations.json",
+                    "amharic_ezekiel_part1.json",
+                    "amharic_ezekiel_part2.json",
+                    "amharic_daniel.json",
+                    "amharic_hosea.json",
+                    "amharic_joel.json",
+                    "amharic_amos.json",
+                    "amharic_obadiah.json",
+                    "amharic_jonah.json",
+                    "amharic_micah.json",
+                    "amharic_nahum.json",
+                    "amharic_habakkuk.json",
+                    "amharic_zephaniah.json",
+                    "amharic_haggai.json",
+                    "amharic_zechariah.json",
+                    "amharic_malachi.json"
                 )
 
             var totalChaptersLoaded = 0
@@ -660,6 +710,39 @@ object BibleScriptureStore {
                         else if (filename.contains("numbers")) BibleDataProvider.getBookById(4)
                         else if (filename.contains("deuteronomy")) BibleDataProvider.getBookById(5)
                         else if (filename.contains("joshua")) BibleDataProvider.getBookById(6)
+                        else if (filename.contains("judges")) BibleDataProvider.getBookById(7)
+                        else if (filename.contains("ruth")) BibleDataProvider.getBookById(8)
+                        else if (filename.contains("1samuel")) BibleDataProvider.getBookById(9)
+                        else if (filename.contains("2samuel")) BibleDataProvider.getBookById(10)
+                        else if (filename.contains("1kings")) BibleDataProvider.getBookById(11)
+                        else if (filename.contains("2kings")) BibleDataProvider.getBookById(12)
+                        else if (filename.contains("1chronicles")) BibleDataProvider.getBookById(13)
+                        else if (filename.contains("2chronicles")) BibleDataProvider.getBookById(14)
+                        else if (filename.contains("ezra")) BibleDataProvider.getBookById(15)
+                        else if (filename.contains("nehemiah")) BibleDataProvider.getBookById(16)
+                        else if (filename.contains("esther")) BibleDataProvider.getBookById(17)
+                        else if (filename.contains("job")) BibleDataProvider.getBookById(18)
+                        else if (filename.contains("psalms")) BibleDataProvider.getBookById(19)
+                        else if (filename.contains("proverbs")) BibleDataProvider.getBookById(20)
+                        else if (filename.contains("ecclesiastes")) BibleDataProvider.getBookById(21)
+                        else if (filename.contains("songofsolomon")) BibleDataProvider.getBookById(22)
+                        else if (filename.contains("isaiah")) BibleDataProvider.getBookById(23)
+                        else if (filename.contains("jeremiah")) BibleDataProvider.getBookById(24)
+                        else if (filename.contains("lamentations")) BibleDataProvider.getBookById(25)
+                        else if (filename.contains("ezekiel")) BibleDataProvider.getBookById(26)
+                        else if (filename.contains("daniel")) BibleDataProvider.getBookById(27)
+                        else if (filename.contains("hosea")) BibleDataProvider.getBookById(28)
+                        else if (filename.contains("joel")) BibleDataProvider.getBookById(29)
+                        else if (filename.contains("amos")) BibleDataProvider.getBookById(30)
+                        else if (filename.contains("obadiah")) BibleDataProvider.getBookById(31)
+                        else if (filename.contains("jonah")) BibleDataProvider.getBookById(32)
+                        else if (filename.contains("micah")) BibleDataProvider.getBookById(33)
+                        else if (filename.contains("nahum")) BibleDataProvider.getBookById(34)
+                        else if (filename.contains("habakkuk")) BibleDataProvider.getBookById(35)
+                        else if (filename.contains("zephaniah")) BibleDataProvider.getBookById(36)
+                        else if (filename.contains("haggai")) BibleDataProvider.getBookById(37)
+                        else if (filename.contains("zechariah")) BibleDataProvider.getBookById(38)
+                        else if (filename.contains("malachi")) BibleDataProvider.getBookById(39)
                         else null
 
                     if (book == null) {

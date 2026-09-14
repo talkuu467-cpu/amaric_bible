@@ -1,5 +1,10 @@
 package com.example.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -21,56 +26,69 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.BibleVerse
 import com.example.ui.BibleViewModel
-import com.example.ui.components.BookChapterPickerSheet
+import com.example.ui.components.AboutDeveloperDialog
+import com.example.ui.components.BibleDrawerContent
+import com.example.ui.components.ChapterPickerDialog
 import com.example.ui.components.NoteEditorDialog
+import com.example.ui.components.TranslationPickerDialog
 import com.example.ui.components.TypographySettingsSheet
 import com.example.ui.components.VerseActionSheet
 import com.example.ui.components.VerseShareDialog
@@ -87,12 +105,18 @@ import com.example.ui.theme.ParchmentTextSecondary
 import com.example.ui.theme.SepiaBackground
 import com.example.ui.theme.SepiaTextPrimary
 import com.example.ui.theme.SepiaTextSecondary
+import com.example.util.GeezUtils
+import com.example.util.ReaderSettings
 import com.example.util.ReaderTheme
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderScreen(
     viewModel: BibleViewModel,
+    onNavigateToSearch: () -> Unit = {},
+    onNavigateToPlans: () -> Unit = {},
+    onNavigateToJournal: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val readerState by viewModel.readerUiState.collectAsStateWithLifecycle()
@@ -100,9 +124,16 @@ fun ReaderScreen(
     val editingNoteVerse by viewModel.editingNoteVerse.collectAsStateWithLifecycle()
     val shareVerse by viewModel.shareVerse.collectAsStateWithLifecycle()
 
-    var showBookPicker by remember { mutableStateOf(false) }
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    var showChapterPicker by remember { mutableStateOf(false) }
+    var showTranslationPicker by remember { mutableStateOf(false) }
     var showTypographySettings by remember { mutableStateOf(false) }
     var showAudioControls by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
 
@@ -118,7 +149,7 @@ fun ReaderScreen(
         }
     }
 
-    // Dynamic reader theme colors
+    // Dynamic reader theme colors (Deep pure dark by default to match screenshot)
     val (readerBg, readerText, readerMuted, readerCardBg, readerBorder) = when (settings.theme) {
         ReaderTheme.PARCHMENT -> ThemeColors(
             ParchmentBackground,
@@ -129,7 +160,7 @@ fun ReaderScreen(
         )
         ReaderTheme.IVORY -> ThemeColors(
             Color(0xFFFFFFFF),
-            Color(0xFF1A1A1A),
+            Color(0xFF111111),
             Color(0xFF64748B),
             Color(0xFFF8FAFC),
             Color(0xFFE2E8F0)
@@ -142,276 +173,361 @@ fun ReaderScreen(
             Color(0xFFD6C5B0)
         )
         ReaderTheme.NIGHT -> ThemeColors(
-            NightBackground,
-            NightTextPrimary,
-            NightTextSecondary,
-            NightSurface,
-            NightBorder
+            Color(0xFF0F0F0F),
+            Color(0xFFFFFFFF),
+            Color(0xFFAAAAAA),
+            Color(0xFF1A1A1A),
+            Color(0xFF2B2B2B)
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Surface(
-                        onClick = { showBookPicker = true },
-                        shape = RoundedCornerShape(20.dp),
-                        color = readerCardBg,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, readerBorder),
-                        modifier = Modifier.testTag("book_picker_header_button")
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+    val goldColor = Color(0xFFE5A93C)
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            BibleDrawerContent(
+                currentBook = readerState.currentBook,
+                onSelectBook = { book ->
+                    viewModel.selectBookAndChapter(book.id, 1)
+                    scope.launch { drawerState.close() }
+                },
+                onCloseDrawer = {
+                    scope.launch { drawerState.close() }
+                },
+                onShowAbout = {
+                    showAboutDialog = true
+                }
+            )
+        },
+        modifier = modifier.testTag("bible_reader_drawer_container")
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+                                    if (drawerState.isClosed) drawerState.open() else drawerState.close()
+                                }
+                            },
+                            modifier = Modifier.testTag("drawer_menu_button")
                         ) {
-                            Text(
-                                text = "${readerState.currentBook.localizedName(settings.translation)} ${readerState.currentChapter}",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = readerText
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
                             Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Select Book or Chapter",
+                                imageVector = Icons.Default.Menu,
+                                contentDescription = "Open Book Drawer",
                                 tint = readerText
                             )
                         }
-                    }
-                },
-                actions = {
-                    // Translation badge
-                    Surface(
-                        onClick = {
-                            val nextTranslation = if (settings.translation == com.example.data.model.BibleTranslation.AMHARIC) {
-                                com.example.data.model.BibleTranslation.KJV
-                            } else {
-                                com.example.data.model.BibleTranslation.AMHARIC
+                    },
+                    title = {
+                        Text(
+                            text = readerState.currentBook.amharicName,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = readerText,
+                            modifier = Modifier.testTag("top_book_title")
+                        )
+                    },
+                    actions = {
+                        // 1. Search Icon
+                        IconButton(
+                            onClick = onNavigateToSearch,
+                            modifier = Modifier.testTag("top_search_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search Scripture",
+                                tint = readerText
+                            )
+                        }
+
+                        // 2. Language / Globe Icon
+                        IconButton(
+                            onClick = { showTranslationPicker = true },
+                            modifier = Modifier.testTag("top_language_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = "Change Language/Translation",
+                                tint = readerText
+                            )
+                        }
+
+                        // 3. Overflow Menu (3 vertical dots)
+                        Box {
+                            IconButton(
+                                onClick = { showOverflowMenu = !showOverflowMenu },
+                                modifier = Modifier.testTag("top_overflow_menu_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "More Options",
+                                    tint = readerText
+                                )
                             }
-                            viewModel.updateTranslation(nextTranslation)
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                        modifier = Modifier
-                            .padding(end = 4.dp)
-                            .testTag("translation_toggle_badge")
-                    ) {
-                        Text(
-                            text = settings.translation.shortCode,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
 
-                    // Audio Button
-                    IconButton(
-                        onClick = {
-                            showAudioControls = !showAudioControls
-                            if (showAudioControls && !viewModel.ttsHelper.isSpeaking) {
-                                viewModel.speakCurrentChapter()
+                            DropdownMenu(
+                                expanded = showOverflowMenu,
+                                onDismissRequest = { showOverflowMenu = false },
+                                modifier = Modifier.background(readerCardBg)
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("🔊 ድምፅ (Audio Reader)", color = readerText) },
+                                    leadingIcon = { Icon(Icons.Default.VolumeUp, contentDescription = null, tint = goldColor) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        showAudioControls = !showAudioControls
+                                        if (showAudioControls && !viewModel.ttsHelper.isSpeaking) {
+                                            viewModel.speakCurrentChapter()
+                                        }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("🔍 ፈልግ (Search)", color = readerText) },
+                                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = goldColor) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onNavigateToSearch()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("🔖 የተቀመጡ (Saved / Notes)", color = readerText) },
+                                    leadingIcon = { Icon(Icons.Default.Bookmark, contentDescription = null, tint = goldColor) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onNavigateToJournal()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("📅 የንባብ ዕቅድ (Daily Plans)", color = readerText) },
+                                    leadingIcon = { Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = goldColor) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onNavigateToPlans()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("👤 ስለ አዘጋጁ (About Developer)", color = readerText) },
+                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = goldColor) },
+                                    onClick = {
+                                         showOverflowMenu = false
+                                         showAboutDialog = true
+                                    }
+                                )
+                                HorizontalDivider(color = readerBorder)
+                                DropdownMenuItem(
+                                    text = { Text("📋 ምዕራፉን ቅዳ (Copy Chapter)", color = readerText) },
+                                    leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, tint = goldColor) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        val fullText = readerState.verses.joinToString("\n") { "${it.verse}. ${it.text}" }
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        val clip = ClipData.newPlainText("Chapter Text", fullText)
+                                        clipboard.setPrimaryClip(clip)
+                                        Toast.makeText(context, "ምዕራፉ ተቀድቷል (Chapter Copied)", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("📤 ምዕራፉን አጋራ (Share Chapter)", color = readerText) },
+                                    leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, tint = goldColor) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        val fullText = "${readerState.currentBook.amharicName} ምዕራፍ ${readerState.currentChapter}\n\n" +
+                                                readerState.verses.joinToString("\n") { "${it.verse}. ${it.text}" }
+                                        val sendIntent = Intent().apply {
+                                            action = Intent.ACTION_SEND
+                                            putExtra(Intent.EXTRA_TEXT, fullText)
+                                            type = "text/plain"
+                                        }
+                                        context.startActivity(Intent.createChooser(sendIntent, "Share Chapter"))
+                                    }
+                                )
                             }
-                        },
-                        modifier = Modifier.testTag("audio_tts_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.VolumeUp,
-                            contentDescription = "Read Aloud",
-                            tint = if (viewModel.ttsHelper.isSpeaking) MaterialTheme.colorScheme.primary else readerText
-                        )
-                    }
-
-                    // Display / Font settings
-                    IconButton(
-                        onClick = { showTypographySettings = true },
-                        modifier = Modifier.testTag("display_settings_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FormatSize,
-                            contentDescription = "Font & Display Settings",
-                            tint = readerText
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = readerBg,
-                    titleContentColor = readerText
-                )
-            )
-        },
-        containerColor = readerBg,
-        modifier = modifier.testTag("bible_reader_screen")
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            // Audio Controls Banner (collapsible)
-            AnimatedVisibility(
-                visible = showAudioControls,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                AudioPlayerBar(
-                    viewModel = viewModel,
-                    readerText = readerText,
-                    cardBg = readerCardBg,
-                    onClose = {
-                        viewModel.stopSpeaking()
-                        showAudioControls = false
-                    }
-                )
-            }
-
-            // Chapter Scripture Content
-            LazyColumn(
-                state = listState,
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                // Chapter Title Header
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = readerState.currentBook.localizedName(settings.translation).uppercase(),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = readerMuted,
-                            letterSpacing = 2.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = if (settings.translation == com.example.data.model.BibleTranslation.AMHARIC) "ምዕራፍ ${readerState.currentChapter}" else "Chapter ${readerState.currentChapter}",
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                fontFamily = settings.font.fontFamily
-                            ),
-                            fontWeight = FontWeight.Bold,
-                            color = readerText
-                        )
-                        Box(
-                            modifier = Modifier
-                                .padding(top = 10.dp, bottom = 6.dp)
-                                .width(48.dp)
-                                .height(2.dp)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
-                        )
-                    }
-                }
-
-                // Verses
-                items(readerState.verses, key = { it.verse }) { verse ->
-                    val highlight = readerState.highlights[verse.verse]
-                    val isBookmarked = readerState.bookmarkedVerses.contains(verse.verse)
-                    val note = readerState.notes[verse.verse]
-                    val isSpeaking = viewModel.ttsHelper.currentSpeakingVerse == verse.verse
-
-                    VerseItemRow(
-                        verse = verse,
-                        settings = settings,
-                        highlightHex = highlight?.colorHex,
-                        isBookmarked = isBookmarked,
-                        hasNote = note != null,
-                        isSpeaking = isSpeaking,
-                        textColor = readerText,
-                        mutedColor = readerMuted,
-                        onClick = { viewModel.setSelectedVerse(verse) }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = readerBg,
+                        titleContentColor = readerText
                     )
-                }
-
-                // Chapter Navigation Footer
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
+                )
+            },
+            bottomBar = {
+                // Bottom Bar matching Screenshot 1 exactly
+                Surface(
+                    color = readerBg,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, readerBorder.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("reader_bottom_bar")
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 16.dp),
+                            .padding(horizontal = 20.dp, vertical = 14.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Surface(
-                            onClick = { viewModel.previousChapter() },
-                            shape = RoundedCornerShape(12.dp),
-                            color = readerCardBg,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, readerBorder),
-                            modifier = Modifier.testTag("previous_chapter_button")
+                        // 1. "ያለፈ" (Previous Chapter)
+                        Box(
+                            modifier = Modifier
+                                .clickable { viewModel.previousChapter() }
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                                .testTag("btn_previous_chapter")
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Previous Chapter",
-                                    tint = readerText,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Previous",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = readerText
-                                )
-                            }
+                            Text(
+                                text = "ያለፈ",
+                                color = readerText,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
 
-                        Text(
-                            text = "${readerState.currentChapter} of ${readerState.currentBook.chaptersCount}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = readerMuted
-                        )
-
-                        Surface(
-                            onClick = { viewModel.nextChapter() },
-                            shape = RoundedCornerShape(12.dp),
-                            color = readerCardBg,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, readerBorder),
-                            modifier = Modifier.testTag("next_chapter_button")
+                        // 2. "ምዕራፍ ፩(1)" (Current Chapter & Picker)
+                        Box(
+                            modifier = Modifier
+                                .clickable { showChapterPicker = true }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                .testTag("btn_chapter_indicator")
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Next",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = readerText
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = "Next Chapter",
-                                    tint = readerText,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                            Text(
+                                text = GeezUtils.formatChapterHeader(readerState.currentChapter),
+                                color = readerText,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // 3. Settings Gear Icon ⚙
+                        IconButton(
+                            onClick = { showTypographySettings = true },
+                            modifier = Modifier.testTag("btn_reader_settings")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = readerText,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        // 4. "ቀጣይ" (Next Chapter)
+                        Box(
+                            modifier = Modifier
+                                .clickable { viewModel.nextChapter() }
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                                .testTag("btn_next_chapter")
+                        ) {
+                            Text(
+                                text = "ቀጣይ",
+                                color = readerText,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
-                    Spacer(modifier = Modifier.height(24.dp))
+                }
+            },
+            containerColor = readerBg,
+            modifier = Modifier.fillMaxSize()
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                // Collapsible Audio Bar if active
+                AnimatedVisibility(
+                    visible = showAudioControls,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    AudioPlayerBar(
+                        viewModel = viewModel,
+                        readerText = readerText,
+                        cardBg = readerCardBg,
+                        onClose = {
+                            viewModel.stopSpeaking()
+                            showAudioControls = false
+                        }
+                    )
+                }
+
+                // Scripture Verses List
+                LazyColumn(
+                    state = listState,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    // Centered Header: ምዕራፍ ፩(1)
+                    item {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp, bottom = 16.dp)
+                        ) {
+                            Text(
+                                text = GeezUtils.formatChapterHeader(readerState.currentChapter),
+                                color = readerText,
+                                fontSize = 21.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    // Verses with stacked Geez numeral over Arabic numeral
+                    items(readerState.verses, key = { it.verse }) { verse ->
+                        val highlight = readerState.highlights[verse.verse]
+                        val isBookmarked = readerState.bookmarkedVerses.contains(verse.verse)
+                        val note = readerState.notes[verse.verse]
+                        val isSpeaking = viewModel.ttsHelper.currentSpeakingVerse == verse.verse
+
+                        ExactVerseRow(
+                            verse = verse,
+                            settings = settings,
+                            highlightHex = highlight?.colorHex,
+                            isBookmarked = isBookmarked,
+                            hasNote = note != null,
+                            isSpeaking = isSpeaking,
+                            textColor = readerText,
+                            goldColor = goldColor,
+                            onClick = { viewModel.setSelectedVerse(verse) }
+                        )
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
                 }
             }
         }
     }
 
-    // Modal Sheets & Dialogs
-    if (showBookPicker) {
-        BookChapterPickerSheet(
-            currentBook = readerState.currentBook,
+    // Modal Dialogs & Sheets
+    if (showChapterPicker) {
+        ChapterPickerDialog(
+            book = readerState.currentBook,
             currentChapter = readerState.currentChapter,
-            onSelect = { bookId, chapter ->
-                viewModel.selectBookAndChapter(bookId, chapter)
+            onSelectChapter = { ch ->
+                viewModel.selectBookAndChapter(readerState.currentBook.id, ch)
             },
-            onDismiss = { showBookPicker = false }
+            onDismiss = { showChapterPicker = false }
+        )
+    }
+
+    if (showTranslationPicker) {
+        TranslationPickerDialog(
+            currentTranslation = settings.translation,
+            onSelect = { tr ->
+                viewModel.updateTranslation(tr)
+            },
+            onDismiss = { showTranslationPicker = false }
         )
     }
 
@@ -425,6 +541,12 @@ fun ReaderScreen(
             onLineSpacingChange = { viewModel.updateLineSpacing(it) },
             onToggleVerseNumbers = { viewModel.toggleVerseNumbers(it) },
             onDismiss = { showTypographySettings = false }
+        )
+    }
+
+    if (showAboutDialog) {
+        AboutDeveloperDialog(
+            onDismissRequest = { showAboutDialog = false }
         )
     }
 
@@ -484,15 +606,15 @@ fun ReaderScreen(
 }
 
 @Composable
-private fun VerseItemRow(
+private fun ExactVerseRow(
     verse: BibleVerse,
-    settings: com.example.util.ReaderSettings,
+    settings: ReaderSettings,
     highlightHex: String?,
     isBookmarked: Boolean,
     hasNote: Boolean,
     isSpeaking: Boolean,
     textColor: Color,
-    mutedColor: Color,
+    goldColor: Color,
     onClick: () -> Unit
 ) {
     val highlightColor = remember(highlightHex) {
@@ -506,73 +628,83 @@ private fun VerseItemRow(
     }
 
     val backgroundColor = when {
-        isSpeaking -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+        isSpeaking -> Color(0xFFE5A93C).copy(alpha = 0.25f)
         highlightColor != null -> highlightColor
         else -> Color.Transparent
     }
 
-    Box(
+    val geezNum = remember(verse.verse) { GeezUtils.toGeez(verse.verse) }
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(6.dp))
             .background(backgroundColor)
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 6.dp)
-            .testTag("verse_row_${verse.verse}")
+            .padding(vertical = 4.dp, horizontal = 4.dp)
+            .testTag("verse_row_${verse.verse}"),
+        verticalAlignment = Alignment.Top
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top
-        ) {
-            // Verse Number
-            if (settings.showVerseNumbers) {
+        // Left Column: Stacked Geez Number & Arabic Number
+        if (settings.showVerseNumbers) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .width(30.dp)
+                    .padding(top = 2.dp)
+            ) {
+                Text(
+                    text = geezNum,
+                    color = goldColor,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
                 Text(
                     text = "${verse.verse}",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontSize = (settings.fontSize.size.value * 0.75f).sp
-                    ),
-                    fontWeight = FontWeight.Bold,
-                    color = if (isSpeaking) MaterialTheme.colorScheme.primary else mutedColor,
-                    modifier = Modifier
-                        .width(28.dp)
-                        .padding(top = 2.dp)
+                    color = Color(0xFFAAAAAA),
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
                 )
             }
 
-            // Verse Text
-            Text(
-                text = verse.text,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = settings.fontSize.size,
-                    lineHeight = (settings.fontSize.lineHeight.value * settings.lineSpacing.multiplier).sp,
-                    fontFamily = settings.font.fontFamily
-                ),
-                color = textColor,
-                modifier = Modifier.weight(1f)
-            )
+            Spacer(modifier = Modifier.width(10.dp))
+        }
 
-            // Indicators (Bookmark / Note)
-            if (isBookmarked || hasNote) {
-                Row(
-                    modifier = Modifier.padding(start = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    if (isBookmarked) {
-                        Icon(
-                            imageVector = Icons.Default.Bookmark,
-                            contentDescription = "Bookmarked",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                    if (hasNote) {
-                        Icon(
-                            imageVector = Icons.Default.EditNote,
-                            contentDescription = "Has Note",
-                            tint = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
+        // Verse Body Text
+        Text(
+            text = verse.text,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = settings.fontSize.size,
+                lineHeight = (settings.fontSize.lineHeight.value * settings.lineSpacing.multiplier).sp,
+                fontFamily = settings.font.fontFamily
+            ),
+            color = textColor,
+            modifier = Modifier.weight(1f)
+        )
+
+        // Indicators
+        if (isBookmarked || hasNote) {
+            Row(
+                modifier = Modifier.padding(start = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                if (isBookmarked) {
+                    Icon(
+                        imageVector = Icons.Default.Bookmark,
+                        contentDescription = "Bookmarked",
+                        tint = goldColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                if (hasNote) {
+                    Icon(
+                        imageVector = Icons.Default.EditNote,
+                        contentDescription = "Has Note",
+                        tint = Color(0xFF64B5F6),
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
         }
@@ -630,15 +762,15 @@ private fun AudioPlayerBar(
 
                 Column {
                     Text(
-                        text = if (viewModel.ttsHelper.isSpeaking) "Reading Aloud..." else "Audio Ready",
+                        text = if (viewModel.ttsHelper.isSpeaking) "በድምፅ እያነበበ ነው..." else "የድምፅ ንባብ ዝግጁ",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = readerText
                     )
                     Text(
-                        text = "Speed: ${"%.1f".format(viewModel.ttsHelper.speechRate)}x",
+                        text = "ፍጥነት: ${"%.1f".format(viewModel.ttsHelper.speechRate)}x",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color(0xFFAAAAAA)
                     )
                 }
             }
