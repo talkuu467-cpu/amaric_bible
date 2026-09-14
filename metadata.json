@@ -1,0 +1,6 @@
+{
+  "name": "Holy Bible",
+  "description": "Clean and readable Holy Bible with daily verses, reading plans, customizable typography, verse highlighting, and offline support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
